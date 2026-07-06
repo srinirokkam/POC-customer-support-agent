@@ -1,277 +1,243 @@
-# Claude Customer Support Agent
+# Customer Support Agent
 
-An advanced, fully customizable customer support chat interface powered by Claude and leveraging Amazon Bedrock Knowledge Bases for knowledge retrieval.
-![preview](tutorial/preview.png)
+An advanced, fully customizable customer support chat interface powered by Anthropic's Claude, leveraging **Amazon Bedrock Knowledge Bases** for contextual, retrieval-augmented knowledge lookup.
+
+> **Note:** This is a cloud-deployed application (AWS Bedrock + Amplify), not a standalone app you can run with a single click. See [Architecture](#architecture) and [Deployment](#deployment) below for how it's built and hosted.
+
+---
+
+## Table of Contents
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Technology Stack](#technology-stack)
+- [Key Components](#key-components)
+- [Project Structure](#project-structure)
+- [Prerequisites](#prerequisites)
+- [Local Development Setup](#local-development-setup)
+- [Environment Variables](#environment-variables)
+- [Amazon Bedrock Knowledge Base Setup](#amazon-bedrock-knowledge-base-setup)
+- [Deployment](#deployment)
+- [Demo](#demo)
+- [Roadmap](#roadmap)
+- [Acknowledgments](#acknowledgments)
+- [License](#license)
+
+---
+
+## Overview
+
+This project implements an AI-powered customer support agent that combines **Claude's conversational intelligence** with **Amazon Bedrock Knowledge Bases** for grounded, source-backed responses. Rather than relying purely on the model's training data, the agent retrieves relevant context from a connected knowledge base in real time, reducing hallucination and enabling domain-specific support.
+
+It's designed as a reference implementation for building production-style RAG (Retrieval-Augmented Generation) support tools — showing not just "chat with an LLM," but the surrounding infrastructure: retrieval, debug visibility, mood-aware routing, and cloud deployment.
 
 ## Key Features
 
--  AI-powered chat using Anthropic's Claude model
--  Amazon Bedrock integration for contextual knowledge retrieval
--  Real-time thinking & debug information display
--  Knowledge base source visualization
--  User mood detection & appropriate agent redirection
--  Highly customizable UI with shadcn/ui components
+- 🤖 **AI-powered chat** using Anthropic's Claude model
+- 📚 **Amazon Bedrock integration** for contextual knowledge retrieval (RAG)
+- 🔍 **Real-time thinking & debug information display** — see the model's reasoning and retrieval steps as they happen
+- 📄 **Knowledge base source visualization** — shows which documents/sources informed each answer
+- 😊 **User mood detection** with automatic redirection to appropriate support flows/agents
+- 🎨 **Highly customizable UI** built with shadcn/ui components
 
-##  Getting Started
+## Architecture
 
-1. Clone this repository
-2. Install dependencies: `npm install`
-3. Set up your environment variables (see Configuration section)
-4. Run the development server: `npm run dev`
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
+```
+┌─────────────┐      ┌──────────────┐      ┌───────────────────────┐
+│   Frontend   │ ───▶ │   API Layer  │ ───▶ │   Anthropic Claude     │
+│ (shadcn/ui)  │      │ (Next.js/API)│      │        API             │
+└─────────────┘      └──────┬───────┘      └───────────────────────┘
+                             │
+                             ▼
+                    ┌──────────────────┐
+                    │ Amazon Bedrock    │
+                    │ Knowledge Base    │
+                    │ (RAG retrieval)   │
+                    └──────────────────┘
+```
 
-## ⚙️ Configuration
+The chat UI sends user queries to the backend, which retrieves relevant context from the Bedrock Knowledge Base and passes it to Claude alongside the conversation. Claude's response — along with retrieved sources and reasoning — is streamed back to the UI.
 
-Create a `.env.local` file in the root directory with the following variables:
+*(Replace this ASCII diagram with an actual architecture image/diagram once finalized — it reads much stronger visually.)*
+
+## Technology Stack
+
+| Layer               | Technology                          |
+|---------------------|---------------------------------------|
+| AI Model            | Anthropic Claude                      |
+| Knowledge Retrieval | Amazon Bedrock Knowledge Bases (RAG)  |
+| Language            | TypeScript                            |
+| Frontend Framework  | Next.js                               |
+| UI Components       | shadcn/ui                             |
+| Styling             | Tailwind CSS + PostCSS                |
+| Deployment          | AWS Amplify (`amplify.yml` build config) |
+
+## Key Components
+
+A quick map of how the main features connect to the code:
+
+| Feature                              | Implemented In                          |
+|---------------------------------------|------------------------------------------|
+| Chat interface & message flow         | `components/ChatArea.tsx`                |
+| Knowledge base source visualization   | `components/FullSourceModal.tsx`         |
+| Navigation & layout                   | `components/TopNavBar.tsx`, `LeftSidebar.tsx`, `RightSidebar.tsx` |
+| Mood detection / category routing     | `app/lib/customer_support_categories.json` |
+| Chat API / Claude + Bedrock calls     | `app/api/chat/route.ts`                  |
+| Theming                               | `components/theme-provider.tsx`          |
+
+## Project Structure
+
+```
+customer-support-agent/
+├── app/
+│   ├── api/chat/
+│   │   └── route.ts              # API route handling chat requests
+│   ├── lib/
+│   │   ├── customer_support_categories.json  # Category/mood definitions
+│   │   └── utils.ts
+│   ├── favicon.ico
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── ui/                        # shadcn/ui primitives
+│   │   ├── avatar.tsx
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   ├── dialog.tsx
+│   │   ├── dropdown-menu.tsx
+│   │   ├── input.tsx
+│   │   └── textarea.tsx
+│   ├── ChatArea.tsx
+│   ├── FullSourceModal.tsx
+│   ├── LeftSidebar.tsx
+│   ├── RightSidebar.tsx
+│   ├── TopNavBar.tsx
+│   └── theme-provider.tsx
+├── lib/
+│   └── utils.ts
+├── public/
+│   ├── ant-logo.svg
+│   ├── claude-icon.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   ├── wordmark-dark.svg
+│   └── wordmark.svg
+├── styles/
+│   └── themes.js
+├── tutorial/                 # Setup walkthrough screenshots
+│   ├── access-keys.png
+│   ├── attach.png
+│   ├── bedrock.png
+│   ├── choose-source.png
+│   ├── create-knowledge-base.png
+│   ├── create-user.png
+│   └── preview.png
+├── .eslintrc.json
+├── .gitignore
+├── amplify.yml               # AWS Amplify build configuration
+├── components.json          # shadcn/ui configuration
+├── config.ts
+├── next.config.mjs           # Next.js configuration
+├── postcss.config.mjs        # PostCSS configuration
+├── tailwind.config.ts        # Tailwind CSS configuration
+├── tsconfig.json             # TypeScript configuration
+├── package.json
+├── package-lock.json
+├── .env.example              # Example environment variables
+└── README.md
+```
+
+## Prerequisites
+
+Before setting this up, you'll need:
+- **Node.js** (version 18+ recommended)
+- **npm** (or your preferred package manager)
+- **AWS account** with access to Amazon Bedrock and a configured Knowledge Base
+- **Anthropic API key**
+- **AWS Amplify CLI** (for deployment)
+- Familiarity with **TypeScript** and **Next.js** is helpful for customizing the app
+
+## Local Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/YOUR-USERNAME/customer-support-agent.git
+cd customer-support-agent
+
+# Install dependencies
+npm install
+
+# Set up environment variables (see below)
+cp .env.example .env.local
+
+# Run the development server
+npm run dev
+```
+
+The app will be available at `http://localhost:3000` (or your configured port).
+
+**Important:** Local development still requires valid AWS Bedrock credentials and a provisioned Knowledge Base — this is not a fully mocked/offline demo.
+
+## Environment Variables
+
+Create a `.env.local` file with the following:
 
 ```
 ANTHROPIC_API_KEY=your_anthropic_api_key
-BAWS_ACCESS_KEY_ID=your_aws_access_key
-BAWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_REGION=your_aws_region
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+BEDROCK_KNOWLEDGE_BASE_ID=your_knowledge_base_id
 ```
 
-Note: We are adding a 'B' in front of the AWS environment variables for a reason that will be discussed later in the deployment section.
+*(Update variable names to match what your code actually references.)*
 
-##  How to Get Your Keys
+## Deployment
 
-### Claude API Key
+This project is configured for deployment via **AWS Amplify**:
 
-1. Visit [console.anthropic.com](https://console.anthropic.com/dashboard)
-2. Sign up or log in to your account
-3. Click on "Get API keys"
-4. Copy the key and paste it into your `.env.local` file
+1. Push this repository to your GitHub account.
+2. In the AWS Amplify console, choose **New app → Host web app**.
+3. Connect your GitHub repository and select the branch to deploy.
+4. Amplify will detect and use the included `amplify.yml` build configuration automatically (adjust it if your build steps differ).
+5. Add the environment variables listed above in the Amplify console under **Environment variables**.
+6. Deploy — Amplify will build and host the app, providing a live URL.
 
-### AWS Access Key and Secret Key
+You'll also need your **Amazon Bedrock Knowledge Base** provisioned and populated with source documents beforehand, since the app depends on it for retrieval.
 
-Follow these steps to obtain your AWS credentials:
+## Amazon Bedrock Knowledge Base Setup
 
-1. Log in to the AWS Management Console
-2. Navigate to the IAM (Identity and Access Management) dashboard
+This project includes step-by-step screenshots (in `tutorial/`) walking through the AWS Bedrock setup:
 
-3. In the left sidebar, click on "Users"
+1. **Create an IAM user & access keys** — see `tutorial/create-user.png` and `access-keys.png`
+2. **Set up Amazon Bedrock** — see `tutorial/bedrock.png`
+3. **Choose a knowledge source** — see `tutorial/choose-source.png`
+4. **Attach the source to your knowledge base** — see `tutorial/attach.png`
+5. **Create the knowledge base** — see `tutorial/create-knowledge-base.png`
+6. **Preview & test retrieval** — see `tutorial/preview.png`
 
-4. Click "Create user" and follow the prompts to create a new user
-   ![Add User](tutorial/create-user.png)
-5. On the Set Permission page, select the "Attach policies directly" policy
-   ![Attach Policy](tutorial/attach.png)
-5. On the permissions page, use the "AmazonBedrockFullAccess" policy
-   ![Attach Policy](tutorial/bedrock.png)
-6. Review and create the user
-7. On the Summary page, click on Create access key.
-8. Then select "Application running on an AWS compute service". Add a description if desired, then click "Create".
-9. You will now see the Access Key ID and Secret Access Key displayed. Note that these keys are only visible once during creation, so be sure to save them securely.
-   ![Access Keys](tutorial/access-keys.png)
-8. Copy these keys and paste them into your `.env.local` file
+Walk through these in order before configuring your `.env.local` — you'll need the resulting Knowledge Base ID and IAM credentials.
 
-Note: Make sure to keep your keys secure and never share them publicly.
+## Demo
 
+See `tutorial/preview.png` for a preview of the knowledge base retrieval in action. *(Consider adding a short screen recording or GIF of the full chat UI here too — since this app requires cloud infrastructure to run, visual proof is the best way for reviewers to see it working without deploying it themselves.)*
 
-##  Amazon Bedrock RAG Integration
+## Roadmap
 
-This project utilizes Amazon Bedrock for Retrieval-Augmented Generation (RAG). To set up:
+- [ ] Add automated tests
+- [ ] Add CI/CD pipeline for Amplify deployments
+- [ ] Expand mood-detection categories
+- [ ] Add multi-language support
 
-1. Ensure you have an AWS account with Bedrock access.
-2. Create a Bedrock knowledge base in your desired AWS region.
-3. Index your documents/sources in the knowledge base. For more info on that, check the "How to Create Your Own Knowledge Base" section.
-4. In `ChatArea.tsx`, update the `knowledgeBases` array with your knowledge base IDs and names:
+## Acknowledgments
 
-```typescript
-const knowledgeBases: KnowledgeBase[] = [
-  { id: "your-knowledge-base-id", name: "Your KB Name" },
-  // Add more knowledge bases as needed
-];
-```
+This project is adapted from Anthropic's [claude-quickstarts](https://github.com/anthropics/claude-quickstarts) `customer-support-agent` example. It has been extended with:
+- Amazon Bedrock Knowledge Base integration for RAG-based retrieval
+- User mood detection and redirection logic
+- Additional debug/source visualization in the UI
+- AWS Amplify deployment configuration
 
-The application will use these knowledge bases for context retrieval during conversations.
+## License
 
-### How to Create Your Own Knowledge Base
-
-To create your own knowledge base:
-
-1. Go to your AWS Console and select Amazon Bedrock.
-2. In the left side menu, click on "Knowledge base" under "More".
-
-3. Click on "Create knowledge base".
-   ![Create Knowledge Base](tutorial/create-knowledge-base.png)
-4. Give your knowledge base a name. You can leave "Create a new service role".
-5. Choose a source for your knowledge base. In this example, we'll use Amazon S3 storage service.
-   ![Choose Source](tutorial/choose-source.png)
-
-   Note: If you're using the S3 storage service, you'll need to create a bucket first where you will upload your files. Alternatively, you can also upload your files after the creation of a knowledge base.
-
-6. Click "Next".
-7. Choose a location for your knowledge base. This can be S3 buckets, folders, or even single documents.
-8. Click "Next".
-9. Select your preferred embedding model. In this case, we'll use Titan Text Embeddings 2.
-10. Select "Quick create a new vector store".
-11. Confirm and create your knowledge base.
-12. Once you have done this, get your knowledge base ID from the knowledge base overview.
-
-
-##  Switching Models
-
-This project supports multiple Claude models. To switch between models:
-
-1. In `ChatArea.tsx`, the `models` array defines available models:
-
-```typescript
-const models: Model[] = [
-  { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku" },
-  { id: "claude-3-5-sonnet-20240620", name: "Claude 3.5 Sonnet" },
-  // Add more models as needed
-];
-```
-
-2. The `selectedModel` state variable controls the currently selected model:
-
-```typescript
-const [selectedModel, setSelectedModel] = useState("claude-3-haiku-20240307");
-```
-
-3. To implement model switching in the UI, a dropdown component is used that updates the `selectedModel`.
-
-
-##  Customization
-
-This project leverages shadcn/ui components, offering a high degree of customization:
-
-* Modify the UI components in the `components/ui` directory
-* Adjust the theme in `app/globals.css`
-* Customize the layout and functionality in individual component files
-* Modify the theme colors and styles by editing the `styles/themes.js` file:
-
-```javascript
-// styles/themes.js
-export const themes = {
-  neutral: {
-    light: {
-      // Light mode colors for neutral theme
-    },
-    dark: {
-      // Dark mode colors for neutral theme
-    }
-  },
-  // Add more themes here
-};
-```
-You can add new themes or modify existing ones by adjusting the color values in this file.
-
-##  Deploy with AWS Amplify
-
-To deploy this application using AWS Amplify, follow these steps:
-
-1. Go to your AWS Console and select Amplify.
-2. Click on "Create new app" (image link to be added later).
-3. Select GitHub (or your preferred provider) as the source.
-4. Choose this repository.
-5. Edit the YAML file to contain:
-
-   ```yaml
-   version: 1
-   frontend:
-     phases:
-       preBuild:
-         commands:
-           - npm ci --cache .npm --prefer-offline
-       build:
-         commands:
-           - npm run build # Next.js build runs first
-           - echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" >> .env
-           - echo "KNOWLEDGE_BASE_ID=$KNOWLEDGE_BASE_ID" >> .env
-           - echo "BAWS_ACCESS_KEY_ID=$BAWS_ACCESS_KEY_ID" >> .env
-           - echo "BAWS_SECRET_ACCESS_KEY=$BAWS_SECRET_ACCESS_KEY" >> .env
-     artifacts:
-       baseDirectory: .next
-       files:
-         - "**/*"
-     cache:
-       paths:
-         - .next/cache/**/*
-         - .npm/**/*
-   ```
-
-6. Choose to create a new service role or use an existing one. Refer to the "Service Role" section for more information.
-7. Click on "Advanced settings" and add your environmental variables:
-
-   ```
-   ANTHROPIC_API_KEY=your_anthropic_api_key
-   BAWS_ACCESS_KEY_ID=your_aws_access_key
-   BAWS_SECRET_ACCESS_KEY=your_aws_secret_key
-   ```
-   The reason we are adding a 'B' in front of the keys here is because AWS doesn't allow keys in Amplify to start with "AWS".
-
-8. Click "Save and deploy" to start the deployment process.
-
-Your application will now be deployed using AWS Amplify.
-
-
-### Service Role
-
-Once your application is deployed, if you selected to create a new service role:
-
-1. Go to your deployments page
-2. Select the deployment you just created
-3. Click on "App settings"
-4. Copy the Service role ARN
-5. Go to the IAM console and find this role
-6. Attach the "AmazonBedrockFullAccess" policy to the role
-
-This ensures that your Amplify app has the necessary permissions to interact with Amazon Bedrock.
-
-##  Customized Deployment and Development
-This project now supports flexible deployment and development configurations, allowing you to include or exclude specific components (left sidebar, right sidebar) based on your needs.
-Configuration
-The inclusion of sidebars is controlled by a config.ts file, which uses environment variables to set the configuration:
-```typescript
-typescriptCopytype Config = {
-  includeLeftSidebar: boolean;
-  includeRightSidebar: boolean;
-};
-
-const config: Config = {
-  includeLeftSidebar: process.env.NEXT_PUBLIC_INCLUDE_LEFT_SIDEBAR === "true",
-  includeRightSidebar: process.env.NEXT_PUBLIC_INCLUDE_RIGHT_SIDEBAR === "true",
-};
-
-export default config;
-```
-
-This configuration uses two environment variables:
-
-NEXT_PUBLIC_INCLUDE_LEFT_SIDEBAR: Set to "true" to include the left sidebar
-NEXT_PUBLIC_INCLUDE_RIGHT_SIDEBAR: Set to "true" to include the right sidebar
-
-## NPM Scripts
-The package.json includes several new scripts for different configurations:
-
-```bash
-npm run dev: Runs the full app with both sidebars (default)
-npm run build: Builds the full app with both sidebars (default)
-npm run dev:full: Same as npm run dev
-npm run dev:left: Runs the app with only the left sidebar
-npm run dev:right: Runs the app with only the right sidebar
-npm run dev:chat: Runs the app with just the chat area (no sidebars)
-npm run build:full: Same as npm run build
-npm run build:left: Builds the app with only the left sidebar
-npm run build:right: Builds the app with only the right sidebar
-npm run build:chat: Builds the app with just the chat area (no sidebars)
-```
-
-Usage
-To use a specific configuration:
-
-For development: Run the desired script (e.g., npm run dev:left)
-For production: Build with the desired script (e.g., npm run build:right)
-
-These scripts set the appropriate environment variables before running or building the application, allowing you to easily switch between different configurations.
-This flexibility allows you to tailor the application's layout to your specific needs, whether for testing, development, or production deployment.
-
-## Appendix
-
-This project is a prototype and is provided on an "as-is" basis. It is not intended for production use and may contain bugs, errors, or inconsistencies. By using this prototype, you acknowledge and agree that:
-- The software is provided in a pre-release, beta, or trial form.
-- It may not be suitable for production or mission-critical environments.
-- The developers are not responsible for any issues, data loss, or damages resulting from its use.
-- No warranties or guarantees of any kind are provided, either expressed or implied.
-- Support for this prototype may be limited or unavailable.
-- Use of this prototype is at your own risk. We encourage you to report any issues or provide feedback to help improve future versions.
+See [LICENSE](./LICENSE) for details.
