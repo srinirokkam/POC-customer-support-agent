@@ -21,7 +21,6 @@ An advanced, fully customizable customer support chat interface powered by Anthr
 - [Demo](#demo)
 - [Roadmap](#roadmap)
 - [Acknowledgments](#acknowledgments)
-- [License](#license)
 
 ---
 
@@ -44,15 +43,15 @@ It's designed as a reference implementation for building production-style RAG (R
 
 ```
 ┌─────────────┐      ┌──────────────┐      ┌───────────────────────┐
-│   Frontend   │ ───▶ │   API Layer  │ ───▶ │   Anthropic Claude     │
-│ (shadcn/ui)  │      │ (Next.js/API)│      │        API             │
+│   Frontend   │ ───▶│   API Layer  │ ───▶│   Anthropic Claude    │
+│ (shadcn/ui)  │     │ (Next.js/API)│      │        API            │
 └─────────────┘      └──────┬───────┘      └───────────────────────┘
                              │
                              ▼
                     ┌──────────────────┐
-                    │ Amazon Bedrock    │
-                    │ Knowledge Base    │
-                    │ (RAG retrieval)   │
+                    │ Amazon Bedrock   │
+                    │ Knowledge Base   │
+                    │ (RAG retrieval)  │
                     └──────────────────┘
 ```
 
@@ -62,21 +61,21 @@ The chat UI sends user queries to the backend, which retrieves relevant context 
 
 ## Technology Stack
 
-| Layer               | Technology                          |
-|---------------------|---------------------------------------|
-| AI Model            | Anthropic Claude                      |
-| Knowledge Retrieval | Amazon Bedrock Knowledge Bases (RAG)  |
-| Language            | TypeScript                            |
-| Frontend Framework  | Next.js                               |
-| UI Components       | shadcn/ui                             |
-| Styling             | Tailwind CSS + PostCSS                |
-| Deployment          | AWS Amplify (`amplify.yml` build config) |
+| Layer               | Technology                              |
+|---------------------|---------------------------------------  |
+| AI Model            | Anthropic Claude                        |
+| Knowledge Retrieval | Amazon Bedrock Knowledge Bases (RAG)    |
+| Language            | TypeScript                              |
+| Frontend Framework  | Next.js                                 |
+| UI Components       | shadcn/ui                               |
+| Styling             | Tailwind CSS + PostCSS                  |
+| Deployment          | AWS Amplify (`amplify.yml` build config)|
 
 ## Key Components
 
 A quick map of how the main features connect to the code:
 
-| Feature                              | Implemented In                          |
+| Feature                              | Implemented In                            |
 |---------------------------------------|------------------------------------------|
 | Chat interface & message flow         | `components/ChatArea.tsx`                |
 | Knowledge base source visualization   | `components/FullSourceModal.tsx`         |
@@ -144,18 +143,16 @@ customer-support-agent/
 ├── tsconfig.json             # TypeScript configuration
 ├── package.json
 ├── package-lock.json
-├── .env.example              # Example environment variables
 └── README.md
 ```
 
 ## Prerequisites
 
 Before setting this up, you'll need:
-- **Node.js** (version 18+ recommended)
+- **Node.js** version `>=18.17.0`
 - **npm** (or your preferred package manager)
 - **AWS account** with access to Amazon Bedrock and a configured Knowledge Base
 - **Anthropic API key**
-- **AWS Amplify CLI** (for deployment)
 - Familiarity with **TypeScript** and **Next.js** is helpful for customizing the app
 
 ## Local Development Setup
@@ -168,8 +165,8 @@ cd customer-support-agent
 # Install dependencies
 npm install
 
-# Set up environment variables (see below)
-cp .env.example .env.local
+# Create your environment file (see Environment Variables below)
+touch .env.local
 
 # Run the development server
 npm run dev
@@ -237,7 +234,3 @@ This project is adapted from Anthropic's [claude-quickstarts](https://github.com
 - User mood detection and redirection logic
 - Additional debug/source visualization in the UI
 - AWS Amplify deployment configuration
-
-## License
-
-See [LICENSE](./LICENSE) for details.
