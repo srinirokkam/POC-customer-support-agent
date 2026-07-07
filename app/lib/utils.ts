@@ -51,7 +51,7 @@ export async function retrieveContext(
       knowledgeBaseId: knowledgeBaseId,
       retrievalQuery: { text: query },
       retrievalConfiguration: {
-        vectorSearchConfiguration: { numberOfResults: n },
+        managedSearchConfiguration: { numberOfResults: n },
       },
     };
 
