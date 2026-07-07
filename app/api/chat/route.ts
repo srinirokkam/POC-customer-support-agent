@@ -69,7 +69,7 @@ export async function POST(req: Request) {
   const { messages, model, knowledgeBaseId } = await req.json();
   //SriniRokkam Edit: to fix env variable issue.
   const resolvedKnowledgeBaseId = process.env.BEDROCK_KNOWLEDGE_BASE_ID;
-  \\SriniRokkam Edit: to fix env variable issue, extra logs
+  //SriniRokkam Edit: to fix env variable issue, extra logs
   console.log("🔑 Have Knowledge Base ID?", !!resolvedKnowledgeBaseId, "| Value:", resolvedKnowledgeBaseId);
 
   const latestMessage = messages[messages.length - 1].content;
