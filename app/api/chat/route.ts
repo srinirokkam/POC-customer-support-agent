@@ -67,6 +67,9 @@ export async function POST(req: Request) {
 
   // Extract data from the request body
   const { messages, model, knowledgeBaseId } = await req.json();
+  //SriniRokkam Edit: to fix env variable issue.
+  const resolvedKnowledgeBaseId = process.env.BEDROCK_KNOWLEDGE_BASE_ID;
+
   const latestMessage = messages[messages.length - 1].content;
 
   console.log("📝 Latest Query:", latestMessage);
@@ -91,7 +94,8 @@ export async function POST(req: Request) {
   try {
     console.log("🔍 Initiating RAG retrieval for query:", latestMessage);
     measureTime("RAG Start");
-    const result = await retrieveContext(latestMessage, knowledgeBaseId);
+    //SriniRokkam- const result = await retrieveContext(latestMessage, knowledgeBaseId);
+    const result = await retrieveContext(latestMessage, resolvedKnowledgeBaseId!);
     retrievedContext = result.context;
     isRagWorking = result.isRagWorking;
     ragSources = result.ragSources || [];
