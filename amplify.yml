@@ -7,10 +7,10 @@ frontend:
     build:
       commands:
         - npm run build # Next.js build runs first
-        - echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" >> .env
-        - echo "KNOWLEDGE_BASE_ID=$KNOWLEDGE_BASE_ID" >> .env
-        - echo "BAWS_ACCESS_KEY_ID=$BAWS_ACCESS_KEY_ID" >> .env
-        - echo "BAWS_SECRET_ACCESS_KEY=$BAWS_SECRET_ACCESS_KEY" >> .env
+        - echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" >> .env.production
+        - echo "BEDROCK_KNOWLEDGE_BASE_ID=$KNOWLEDGE_BASE_ID" >> .env.production
+        - echo "BAWS_ACCESS_KEY_ID=$BAWS_ACCESS_KEY_ID" >> .env.production
+        - echo "BAWS_SECRET_ACCESS_KEY=$BAWS_SECRET_ACCESS_KEY" >> .env.production
   artifacts:
     baseDirectory: .next
     files:
