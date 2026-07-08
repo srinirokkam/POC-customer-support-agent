@@ -18,6 +18,7 @@ An advanced, fully customizable customer support chat interface powered by Anthr
 - [Environment Variables](#environment-variables)
 - [Amazon Bedrock Knowledge Base Setup](#amazon-bedrock-knowledge-base-setup)
 - [Deployment](#deployment)
+- [Troubleshooting](#troubleshooting)
 - [Demo](#demo)
 - [Roadmap](#roadmap)
 - [Acknowledgments](#acknowledgments)
@@ -43,15 +44,15 @@ It's designed as a reference implementation for building production-style RAG (R
 
 ```
 ┌─────────────┐      ┌──────────────┐      ┌───────────────────────┐
-│   Frontend   │ ───▶│   API Layer  │ ───▶│   Anthropic Claude    │
-│ (shadcn/ui)  │     │ (Next.js/API)│      │        API            │
+│   Frontend   │ ───▶ │   API Layer  │ ───▶ │   Anthropic Claude     │
+│ (shadcn/ui)  │      │ (Next.js/API)│      │        API             │
 └─────────────┘      └──────┬───────┘      └───────────────────────┘
                              │
                              ▼
                     ┌──────────────────┐
-                    │ Amazon Bedrock   │
-                    │ Knowledge Base   │
-                    │ (RAG retrieval)  │
+                    │ Amazon Bedrock    │
+                    │ Knowledge Base    │
+                    │ (RAG retrieval)   │
                     └──────────────────┘
 ```
 
@@ -61,21 +62,21 @@ The chat UI sends user queries to the backend, which retrieves relevant context 
 
 ## Technology Stack
 
-| Layer               | Technology                              |
-|---------------------|---------------------------------------  |
-| AI Model            | Anthropic Claude                        |
-| Knowledge Retrieval | Amazon Bedrock Knowledge Bases (RAG)    |
-| Language            | TypeScript                              |
-| Frontend Framework  | Next.js                                 |
-| UI Components       | shadcn/ui                               |
-| Styling             | Tailwind CSS + PostCSS                  |
-| Deployment          | AWS Amplify (`amplify.yml` build config)|
+| Layer               | Technology                          |
+|---------------------|---------------------------------------|
+| AI Model            | Anthropic Claude                      |
+| Knowledge Retrieval | Amazon Bedrock Knowledge Bases (RAG)  |
+| Language            | TypeScript                            |
+| Frontend Framework  | Next.js                               |
+| UI Components       | shadcn/ui                             |
+| Styling             | Tailwind CSS + PostCSS                |
+| Deployment          | AWS Amplify (`amplify.yml` build config) |
 
 ## Key Components
 
 A quick map of how the main features connect to the code:
 
-| Feature                              | Implemented In                            |
+| Feature                              | Implemented In                          |
 |---------------------------------------|------------------------------------------|
 | Chat interface & message flow         | `components/ChatArea.tsx`                |
 | Knowledge base source visualization   | `components/FullSourceModal.tsx`         |
@@ -153,6 +154,7 @@ Before setting this up, you'll need:
 - **npm** (or your preferred package manager)
 - **AWS account** with access to Amazon Bedrock and a configured Knowledge Base
 - **Anthropic API key**
+- **cross-env** (dev dependency, used to set environment variables in the `dev`/`build` scripts consistently across Windows, Mac, and Linux — see Local Development Setup below)
 - Familiarity with **TypeScript** and **Next.js** is helpful for customizing the app
 
 ## Local Development Setup
@@ -165,12 +167,17 @@ cd customer-support-agent
 # Install dependencies
 npm install
 
+# Install cross-env (required on Windows to run the dev/build scripts correctly)
+npm install --save-dev cross-env
+
 # Create your environment file (see Environment Variables below)
 touch .env.local
 
 # Run the development server
 npm run dev
 ```
+
+**Note on Windows:** the `dev` and `build` scripts in `package.json` set environment variables inline (e.g. `NEXT_PUBLIC_INCLUDE_LEFT_SIDEBAR=true`). This syntax works natively on Mac/Linux, but Windows runs npm scripts through `cmd.exe`, which doesn't support it — resulting in an error like `'NEXT_PUBLIC_INCLUDE_LEFT_SIDEBAR' is not recognized as an internal or external command`. Installing `cross-env` and prefixing those scripts with it (e.g. `cross-env NEXT_PUBLIC_INCLUDE_LEFT_SIDEBAR=true ... next dev`) resolves this across all operating systems.
 
 The app will be available at `http://localhost:3000` (or your configured port).
 
@@ -215,6 +222,146 @@ This project includes step-by-step screenshots (in `tutorial/`) walking through 
 6. **Preview & test retrieval** — see `tutorial/preview.png`
 
 Walk through these in order before configuring your `.env.local` — you'll need the resulting Knowledge Base ID and IAM credentials.
+
+## Troubleshooting
+
+This section documents real issues encountered while setting this project up and deploying it, in the order they're likely to surface. If the chat responds with something like *"I don't have that information, let me connect you with a human agent"* for basic questions that should be answered by your knowledge base, it usually means retrieval is silently failing — work through the checks below.
+
+### 1. Placeholder Knowledge Base ID never replaced
+
+**Symptom:**
+```
+RAG Error: ValidationException: 1 validation error detected: Value 'your-knowledge-base-id'
+at 'knowledgeBaseId' failed to satisfy constraint...
+```
+
+**Cause:** `components/ChatArea.tsx` originally ships with a hardcoded placeholder:
+```typescript
+const knowledgeBases: KnowledgeBase[] = [
+  { id: "your-knowledge-base-id", name: "Your KB Name" },
+];
+```
+This value gets sent from the frontend to the API on every request, so simply changing an environment variable in Amplify has no effect until the code itself is fixed.
+
+**Fix:** Don't trust the frontend for this — resolve the Knowledge Base ID **server-side** in `app/api/chat/route.ts` instead:
+```typescript
+const { messages, model, knowledgeBaseId } = await req.json();
+const resolvedKnowledgeBaseId = process.env.BEDROCK_KNOWLEDGE_BASE_ID;
+// ...
+const result = await retrieveContext(latestMessage, resolvedKnowledgeBaseId!);
+```
+This also avoids ever needing to hardcode a real Knowledge Base ID in client-side code (which would otherwise ship inside the public JS bundle).
+
+### 2. Environment variables not available at runtime on Amplify
+
+**Symptom:** Logs show `knowledgeBaseId is not provided` even though the variable is correctly set in the Amplify console.
+
+**Cause:** AWS Amplify injects environment variables at **build time**, not automatically at **runtime** for server-side/SSR code (like Next.js API routes). A variable visible in the console isn't automatically visible to `process.env` inside a deployed API route.
+
+**Fix:** Explicitly write the variables into `.env.production` during the build step, **before** `npm run build` runs, in `amplify.yml`:
+```yaml
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci --cache .npm --prefer-offline
+    build:
+      commands:
+        - echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" >> .env.production
+        - echo "BEDROCK_KNOWLEDGE_BASE_ID=$BEDROCK_KNOWLEDGE_BASE_ID" >> .env.production
+        - echo "BAWS_ACCESS_KEY_ID=$BAWS_ACCESS_KEY_ID" >> .env.production
+        - echo "BAWS_SECRET_ACCESS_KEY=$BAWS_SECRET_ACCESS_KEY" >> .env.production
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - "**/*"
+  cache:
+    paths:
+      - .next/cache/**/*
+      - .npm/**/*
+```
+Two easy mistakes to double check here:
+- The **variable name on the right side** of each `echo` line must exactly match the name set in the Amplify console (e.g. `$BEDROCK_KNOWLEDGE_BASE_ID`, not a shortened `$KNOWLEDGE_BASE_ID`).
+- The `echo` lines must run **before** `npm run build`, not after — otherwise the values aren't available during the build that generates the server bundle.
+
+### 3. Silent failures instead of real errors
+
+**Symptom:** The chat always responds with a generic redirect-to-human message, with no visible error to the user.
+
+**Cause:** `retrieveContext()` is wrapped in a try/catch that fails "quietly" — logging `RAG Retrieval failed but did not throw!` to the server console and returning an empty context, rather than surfacing the real error. The app then interprets the resulting empty context as a trigger for its mood/category redirect logic, masking the actual root cause.
+
+**Fix:** Don't rely on the chat UI to diagnose problems — always check the **Amplify runtime/monitoring logs** for the actual underlying error (`RAG Error: ...`) rather than trusting the user-facing message.
+
+### 4. Managed Knowledge Base vs. Custom Knowledge Base configuration
+
+**Symptom:**
+```
+RAG Error: ValidationException: Incompatible configuration: vectorSearchConfiguration
+is not supported for managed knowledge bases. Use managedSearchConfiguration instead.
+```
+
+**Cause:** AWS Bedrock offers two Knowledge Base types — **Managed** (Bedrock handles the vector store for you) and **Customer-managed** (you provide your own vector store, e.g. OpenSearch). The original code was written against the older `vectorSearchConfiguration` field, which only applies to customer-managed knowledge bases. If you created a Managed Knowledge Base through the console (check the Knowledge Base overview page — it will say "Managed" under Embeddings model), you need the other field.
+
+**Fix:** In `app/lib/utils.ts`, inside `retrieveContext()`:
+```typescript
+// Before
+retrievalConfiguration: {
+  vectorSearchConfiguration: { numberOfResults: n },
+},
+
+// After
+retrievalConfiguration: {
+  managedSearchConfiguration: { numberOfResults: n },
+},
+```
+
+### 5. TypeScript build failure after fixing #4
+
+**Symptom:**
+```
+Type error: Object literal may only specify known properties, and
+'managedSearchConfiguration' does not exist in type 'KnowledgeBaseRetrievalConfiguration'.
+```
+
+**Cause:** `managedSearchConfiguration` is a newer field, and the installed version of `@aws-sdk/client-bedrock-agent-runtime` predates it — its TypeScript types don't recognize the property yet, even though the field is valid at the API level.
+
+**Fix:** Update the SDK package:
+```bash
+npm install @aws-sdk/client-bedrock-agent-runtime@latest
+git add package.json package-lock.json
+git commit -m "Update AWS SDK to support managed knowledge bases"
+git push
+```
+
+### 6. Windows: "is not recognized as an internal or external command" when running `npm run dev`
+
+**Symptom:**
+```
+'NEXT_PUBLIC_INCLUDE_LEFT_SIDEBAR' is not recognized as an internal or external command,
+operable program or batch file.
+```
+
+**Cause:** The `dev`/`build` scripts in `package.json` set environment variables inline before the command (e.g. `NEXT_PUBLIC_INCLUDE_LEFT_SIDEBAR=true next dev`). This works on Mac/Linux shells, but npm on Windows always executes scripts via `cmd.exe`, which doesn't understand this syntax — regardless of whether you're using Git Bash to type the command.
+
+**Fix:** Install `cross-env` and prefix the relevant scripts with it, so the same script works identically across operating systems:
+```bash
+npm install --save-dev cross-env
+```
+```json
+"dev": "cross-env NEXT_PUBLIC_INCLUDE_LEFT_SIDEBAR=true NEXT_PUBLIC_INCLUDE_RIGHT_SIDEBAR=true next dev"
+```
+
+### General debugging tips
+- **Add temporary debug logs** liberally around credential/config values you suspect are missing, e.g.:
+  ```typescript
+  console.log("Have Knowledge Base ID?", !!resolvedKnowledgeBaseId);
+  ```
+  Remove these once the issue is confirmed fixed.
+- **Check build logs, not just runtime logs**, when a deployment fails outright (Amplify Console → your deployment → Build phase) — build failures (like missing/invalid types) show up there, not in the app's runtime logs.
+- **Watch out for stray characters in comments** — a `\\` instead of `//` in a `.ts`/`.tsx` file is invalid syntax and will fail the build with a cryptic-looking error pointing at an unrelated line.
+- When copying AWS resource IDs (Knowledge Base ID, ARNs, etc.), copy directly from the console rather than retyping — a single dropped character will fail AWS's regex validation with a `ValidationException`.
 
 ## Demo
 
